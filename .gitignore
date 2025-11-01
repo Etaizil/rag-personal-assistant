@@ -28,7 +28,6 @@ logs/
 *.log
 
 .env
-.env.*
 
 *.sqlite
 *.db
