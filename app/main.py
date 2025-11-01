@@ -8,7 +8,7 @@ app = FastAPI(title="RAG Personal Assistant API")
 app.include_router(chat_router, prefix="/chat", tags=["chat"])
 app.include_router(models_router, prefix="/models", tags=["models"])
 
-_allowed = os.getenv("ALLOWED_ORIGINS", None)
+_allowed = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173")
 allow_origins = [o.strip() for o in _allowed.split(",") if o.strip()]
 
 app.add_middleware(
