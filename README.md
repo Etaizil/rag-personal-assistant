@@ -1,11 +1,15 @@
 # RAG Personal Assistant
 
-A minimal Retrieval‑Augmented Generation (RAG) chatbot.
+A minimal Retrieval-Augmented Generation (RAG) chatbot with a local + OpenAI hybrid design.
 
-* **Backend:** FastAPI
+* **Backend:** FastAPI (Python)
+* **Frontend:** React (Vite) at `ui/`
 * **Vector DB:** Chroma (local, persisted in `.chroma/`)
-* **Embeddings:** **Local** (SentenceTransformers) or **OpenAI** (`text-embedding-3-small`)
-* **LLM:** OpenAI Chat (e.g., `gpt-4o-mini`)
+* **Embeddings:** Local (SentenceTransformers) **or** OpenAI (`text-embedding-3-small`)
+* **LLM:** OpenAI Chat models (default `gpt-5-nano`)
+* **Tokenization:** Local `tiktoken` for estimates + OpenAI usage stats
+
+---
 
 ## Quick Start (Windows PowerShell)
 
@@ -17,16 +21,21 @@ Copy-Item .env.example .env
 notepad .env   # set OPENAI_API_KEY if you want model answers
 ```
 
-### Choose embeddings backend
+### Embeddings backend
 
-* **Local (free):** set `EMBEDDINGS_BACKEND=local` in `.env`, then:
+* **Local (free):**
 
   ```bash
   pip install sentence-transformers
   ```
-* **OpenAI (paid, cheap):** keep `EMBEDDINGS_BACKEND=openai` and set `OPENAI_API_KEY`, `OPENAI_EMBED_MODEL=text-embedding-3-small`.
 
-### Ingest knowledge
+  and set `EMBEDDINGS_BACKEND=local` in `.env`.
+* **OpenAI (paid):** keep `EMBEDDINGS_BACKEND=openai` and set
+  `OPENAI_EMBED_MODEL=text-embedding-3-small`.
+
+---
+
+## Ingest Knowledge
 
 ```bash
 # optional reset
@@ -34,50 +43,84 @@ Remove-Item -Recurse -Force .chroma -ErrorAction Ignore
 python scripts\ingest.py data\sample_kb
 ```
 
-### Run API
+---
+
+## Run API
 
 ```bash
 uvicorn app.main:app --reload --port 8000
 # http://127.0.0.1:8000/docs -> POST /chat
 ```
 
-## Token Tools (optional)
+---
 
-* CLI:
+## Frontend (React UI)
 
-  ```bash
-  python scripts\tokens.py --text "Explain Canonicar briefly."
-  python scripts\tokens.py --file data\sample_kb\01_canonicar_overview.md
-  ```
-* API:
+```bash
+cd ui
+npm install
+npm run dev
+# open http://127.0.0.1:5173
+```
 
-  * `POST /tools/tokens/text`
-  * `POST /tools/tokens/messages`
+* Toggle **Debug** to view context, diagnostics, and token estimates.
+* CORS origins are configured via ALLOWED_ORIGINS in .env.
+
+---
 
 ## RAG Flow
 
-1. **Ingest** → chunk → embed → store in Chroma (`kb_main`).
-2. **Retrieve** → top‑k similarity search.
-3. **Generate** → LLM answers using retrieved context.
+1. **Ingest** → chunk → embed → store in Chroma.
+2. **Retrieve** → top-k similarity search (`RAG_TOP_K` in `.env`).
+3. **Generate** → build prompt, send to model, return concise answer.
 
-## Costs (where you pay)
+Token costs and context size are automatically managed:
 
-* **Local embeddings:** $0
-* **OpenAI embeddings:** per‑token (very small for small KBs)
-* **/chat generation:** per‑token (input + output).
-  Small tests are typically **fractions of a cent**. OpenAI usage rounds to cents, so you may see $0.00 even when tokens increase.
+* Input capped by `MAX_INPUT_TOKENS`
+* Output capped adaptively by `MAX_OUTPUT_TOKENS`
+* All token counts tracked locally (`tiktoken`) and by the OpenAI response
+
+---
+
+## Debug & Token Details
+
+* Use `?debug=true` on any `/chat` request to see:
+
+  * `context_preview`
+  * model diagnostics (finish reason, length, etc.)
+  * local `pre_est_input_tokens`
+* You can just toggle the **Debug** checkbox in the UI for the same effect.
+
+---
+
+## Typical Costs
+
+| Component         | Backend                | Cost                           |
+| ----------------- | ---------------------- | ------------------------------ |
+| Local embeddings  | SentenceTransformers   | $0                             |
+| OpenAI embeddings | text-embedding-3-small | per token (~$0.02–$0.1 per 1M) |
+| Chat completion   | e.g. `gpt-5-nano`      | ~$0.05/M input, ~$0.4/M output |
+
+Small KBs usually cost well under a cent per request.
+
+For that reason - feel free to experiment! See an example of my usage dashboard and cost
+
+---
 
 ## Troubleshooting
 
-* Use `http://127.0.0.1:8000` (port 8000).
-* Empty answers → ensure `.md` files have text and re‑ingest.
-* Switched embeddings backend → delete `.chroma` and re‑ingest.
-* CORS for UI → enable `CORSMiddleware` in `app/main.py` when adding a front‑end.
+* Empty answers → check `.md` text, then re-ingest.
+* Changed embedding backend → delete `.chroma` and re-ingest.
+* `"finish_reason": "length"` → increase `MAX_OUTPUT_TOKENS`.
+* UI connection errors → ensure backend runs at `http://127.0.0.1:8000`.
 
-## What’s Next
+---
 
-* Add PDF/HTML ingestion adapters.
-* Add React chat UI (`ui/` with Vite) and CORS.
-* Add citations with short snippets in answers.
-* Add a tiny evaluation harness for RAG (golden Q/A file).
-* Optional: try an OSS generation model later (Ollama/vLLM).
+## Next possible Steps (for me)
+
+* Add ingestion for PDFs / HTML / images.
+* Add snippet-based citations in answers.
+* Add a simple RAG evaluation harness (golden Q/A pairs).
+* Optional: experiment with local generation models (Ollama, vLLM).
+
+---
