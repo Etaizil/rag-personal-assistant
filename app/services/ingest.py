@@ -70,9 +70,13 @@ class IngestService:
         docs, ids, metas = self._to_records(path, text)
         if not docs:
             return 0
-        b = max(1, settings.getint("BATCH_SIZE", default=128))
+        b = max(1, settings.batch_size)
         for i in range(0, len(docs), b):
-            self.vs.add_texts(docs[i : i + b], ids[i : i + b], metas[i : i + b])
+            self.vs.add_texts(
+                docs[i : i + b],
+                metas[i : i + b],
+                ids[i : i + b],
+            )
         return len(docs)
 
     def ingest_dir(self, root: Path) -> int:
@@ -88,12 +92,15 @@ def ingest_dir(dir_path: str) -> int:
     vs = LocalVectorStore(
         settings.chroma_dir, settings.openai_embed_model, settings.openai_api_key
     )
-    maxc = settings.getint("INGEST_MAX_CHARS", default=8000)
+
+    maxc = settings.ingest_max_chars
     maxc = None if maxc is not None and maxc <= 0 else maxc
+
     cfg = ChunkConfig(
         max_chars=maxc,
-        overlap=settings.getint("INGEST_OVERLAP", default=300),
-        batch_size=settings.getint("BATCH_SIZE", default=128),
+        overlap=settings.ingest_overlap,
+        batch_size=settings.batch_size,
     )
+
     service = IngestService(vs, TextChunker(cfg))
     return service.ingest_dir(root)
