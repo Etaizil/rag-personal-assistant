@@ -16,6 +16,11 @@ class Settings(BaseModel):
     chroma_dir: str = os.getenv("CHROMA_DIR", ".chroma")
     max_input_tokens: int = int(os.getenv("MAX_INPUT_TOKENS", "5000"))
     max_output_tokens: int = int(os.getenv("MAX_OUTPUT_TOKENS", "200"))
+
+    ingest_max_chars: int = int(os.getenv("INGEST_MAX_CHARS", "8000"))
+    ingest_overlap: int = int(os.getenv("INGEST_OVERLAP", "300"))
+    batch_size: int = int(os.getenv("BATCH_SIZE", "128"))
+
     debug: bool = os.getenv("DEBUG", "False").strip().lower() in (
         "1",
         "true",
